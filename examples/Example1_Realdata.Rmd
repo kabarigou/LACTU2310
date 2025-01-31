@@ -1,0 +1,93 @@
+---
+title: First illustration using real dataset
+output: rmarkdown::html_vignette
+---
+
+```{r,message=FALSE,warning=FALSE}
+# require("CASdatasets") - Not necessary, as we saved the data as parquet file
+if (!require("rpart")) install.packages("rpart")
+if (!require("rpart.plot")) install.packages("rpart.plot")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("arrow")) install.packages("arrow")
+
+
+require("rpart")
+require("rpart.plot")
+require("ggplot2")
+require("dplyr")
+require("arrow")
+
+# Set global chunk options for figure size
+knitr::opts_chunk$set(fig.width = 8, fig.height = 6, fig.retina = 2)
+```
+
+```{r}
+dataset = read_parquet(file = "../data/dataset.parquet")
+```
+
+### Quick Example
+
+Let us start with a simple example, using two covariates:
+
+```{r}
+m0_rpart = rpart(cbind(Exposure, ClaimNb) ~ DriverAge + CarAge, 
+                 data = dataset,
+                 method = "poisson", 
+                 control = rpart.control(cp = 0.01))
+summary(m0_rpart)
+#Remark
+#The y variable for Poisson partitioning may be a two column
+#a matrix containing the observation time in column 1 (Exposure in this case) and the number of events in column 2 (number of claims in this case)
+```
+
+It appears that the tree has a single node and has not been split further. This comes from the complexity parameter which penalizes the splitting. **By default**, the complexity parameter **cp = 0.01**, which is often too large for Poisson data with low frequencies.
+
+Let us put **cp = 0**, but to keep a small tree we will also impose a maximum depth of 3.
+
+```{r}
+m0_rpart = rpart(cbind(Exposure, ClaimNb) ~ DriverAge + CarAge, 
+                 data = dataset,
+                 control = rpart.control(cp = 0, maxdepth = 3))
+# Display the tree structure
+print(m0_rpart)
+# Plot the tree
+rpart.plot(m0_rpart)
+```
+
+### Understanding Optimal Split
+Let us try to understand why the first split uses the following split DriverAge < 26.5.
+
+Let us consider the different possible ways to split the dataset into two using the DriverAge variable.
+
+```{r}
+ages = seq(18.5,98.5,1)
+
+loglik =sapply(ages,function(age){
+    # Define an indicator to split the data
+    dataset$DriverAge_indicator = (dataset$DriverAge < age)
+    # Compute on both sides of the split the claim frequency
+    temp = dataset %>% group_by(DriverAge_indicator) %>% summarise(claim_freq=sum(ClaimNb)/sum(Exposure))
+    # Assign the claim frequency to each row of the dataset
+    dataset = dataset %>% left_join(temp, by="DriverAge_indicator")
+    # # Compute the log-likelihood.
+    return(with(dataset, sum(dpois(x=ClaimNb, lambda = Exposure * claim_freq, log=TRUE))))
+      # Compute the log-likelihood using the explicit formula
+      # return(with(dataset, sum(ClaimNb * log(Exposure * claim_freq) -
+      # Exposure * claim_freq - lfactorial(ClaimNb))))
+})
+
+plotdata = data.frame(DriverAge=ages, loglik=loglik)
+ggplot(plotdata) + geom_line(aes(x=DriverAge, y=loglik))+
+  labs(title = "Log-likelihood in function of different driver age splits",
+       x = "DriverAge Split Point",
+       y = "Log-Likelihood")
+```
+
+```{r}
+# Show 5 splits with greatest log-likelihood
+head(plotdata[order(-plotdata$loglik),], 5)
+```
+
+We see that DriverAge < 26.5 indeed corresponds to the optimal split.
+
