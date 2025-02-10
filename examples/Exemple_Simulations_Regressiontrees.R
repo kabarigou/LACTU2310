@@ -35,7 +35,7 @@ tree <- rpart(
   Y ~ Gender + Age + Split + Sport,
   data = data, # Replace 'data' with your dataset name if different
   method = "poisson",
-  control = rpart.control(minsplit = 50, cp = 0.0001,maxdepth = 3) # Adjust parameters as needed
+  control = rpart.control(minsplit = 50, cp = 0,maxdepth = 3) # Adjust parameters as needed
 )
 
 #rpart.control: Various parameters that control aspects of the rpart fit.
@@ -56,17 +56,46 @@ print(tree)
 # Plot the tree
 rpart.plot(tree)
 
-# Fit the tree model with maximum depth=3
-tree2 <- rpart(
+# Fit the tree model with maximum depth=4
+fulltree <- rpart(
   Y ~ Gender + Age + Split + Sport,
   data = data, # Replace 'data' with your dataset name if different
   method = "poisson",
-  control = rpart.control(cp = 0.000001,maxdepth = 4) # Adjust parameters as needed
+  control = rpart.control(cp = 0,maxdepth = 4) # Adjust parameters as needed
 )
 
 # Display the tree structure
-print(tree2)
+print(fulltree)
 
 # Plot the tree
-rpart.plot(tree2)
+rpart.plot(fulltree)
 
+#Print complexity parameters
+printcp(fulltree)
+
+# Extract the complexity parameter (cp) table
+cp_table <- fulltree$cptable
+
+# Get the "before last" cp value
+before_last_cp <- cp_table[nrow(cp_table) - 1, "CP"]
+
+# Print the "before last" cp value
+print(before_last_cp)
+
+# Prune the tree to the first CP value
+tree_pruned_1 <- prune(fulltree, cp = cp_table[nrow(cp_table) - 1, "CP"]) # First CP value
+rpart.plot(tree_pruned_1, main = "Pruned Tree - Step 1")
+
+# Prune the tree further
+tree_pruned_2 <- prune(tree_pruned_1, cp = cp_table[nrow(cp_table) - 2, "CP"]) # Use the next CP value
+rpart.plot(tree_pruned_2, main = "Pruned Tree - Step 2")
+
+# Continue pruning iteratively (repeat for more steps)
+tree_pruned_3 <- prune(tree_pruned_2, cp = cp_table[nrow(cp_table) - 3, "CP"]) # Next CP value
+rpart.plot(tree_pruned_3, main = "Pruned Tree - Step 3")
+
+tree_pruned_4 <- prune(tree_pruned_3, cp = cp_table[nrow(cp_table) - 4, "CP"]) # Final pruning
+rpart.plot(tree_pruned_4, main = "Pruned Tree - Step 4")
+
+#Print now the CP table of the pruned tree => Optimal tree in terms of cross-validation
+printcp(tree_pruned_4)
