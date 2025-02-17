@@ -1,0 +1,132 @@
+---
+title: "Analysis_simulateddataset"
+author: "Karim Barigou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+This document demonstrates the simulation of data presented in the course, along with tree-based modeling using the **rpart** package. The analysis includes:
+- Simulating the dataset.
+- Fitting tree models with different maximum depths.
+- Visualizing the tree models.
+- Pruning the tree iteratively to identify the optimal model based on cross-validation.
+
+## Setup
+
+We load the required libraries.
+
+```{r setup, echo=TRUE, message=FALSE, warning=FALSE}
+# Set a seed for reproducibility
+set.seed(123)
+
+# Load necessary libraries
+library(rpart)
+library(rpart.plot)
+```
+
+## Data Simulation
+
+We simulate a dataset with 1,000,000 observations. The dataset includes four covariates: Gender (male or female), Age (18 to 65), Split of the annual premium (yes or no), Sports car (yes or no). Then, we compute the expected claim frequency and simulate the number of claims.
+
+```{r data-simulation, echo=TRUE}
+# Number of simulations
+n <- 1000000
+
+# Simulating the features
+X1 <- sample(c("female", "male"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+X2 <- sample(18:65, size = n, replace = TRUE, prob = rep(1/48, 48))
+X3 <- sample(c("yes", "no"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+X4 <- sample(c("yes", "no"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+
+# Compute expected claim frequency μ(x)
+mu <- 0.1 * 
+  (1 + 0.1 * (X1 == "male")) * 
+  (1 + 0.4 * (X2 >= 18 & X2 < 30) + 0.2 * (X2 >= 30 & X2 < 45)) * 
+  (1 + 0.15 * (X4 == "yes"))
+
+# Simulate response variable Y (number of claims) following a Poisson distribution
+Y <- rpois(n, lambda = mu)
+
+# Combine into a dataframe
+data <- data.frame(Y, Gender = X1, Age = X2, Split = X3, Sport = X4)
+
+# Display the first 10 rows of the data
+head(data, 10)
+```
+
+## Fitting a Tree Model (Maximum Depth = 3)
+
+Here we fit a tree-based model using **rpart** with a maximum tree depth of 3. The model is used to predict the number of claims based on the features. As we have seen in the course, this leads to a **underfitted** model as some important features are missing.
+
+```{r tree-model-depth3, echo=TRUE, fig.height=6, fig.width=8}
+# Fit the tree model with maximum depth = 3
+tree <- rpart(
+  Y ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(minsplit = 50, cp = 0, maxdepth = 3)
+)
+
+# Display the tree structure
+print(tree)
+
+# Plot the tree
+rpart.plot(tree)
+```
+
+## Fitting a Full Tree Model (Maximum Depth = 4)
+
+We then fit a full tree model with a maximum depth of 4. As we have seen in the course, this leads to an **overfitted** model given that some unnecessary branches appear now in the tree. 
+
+```{r tree-model-depth4, echo=TRUE, fig.height=6, fig.width=8}
+# Fit the tree model with maximum depth = 4
+fulltree <- rpart(
+  Y ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth = 4)
+)
+
+# Display the tree structure
+print(fulltree)
+
+# Plot the tree
+rpart.plot(fulltree)
+
+# Print complexity parameters
+printcp(fulltree)
+```
+
+## Tree Pruning
+
+Based on the table of the complexity parameters, we know that we will reach the optimal tree (the tree which minimizes the 10-fold cross-validation error) by pruning the tree four times iteratively. To do so, we extract the complexity parameter (cp) table and perform sequential pruning steps.
+
+```{r tree-pruning, echo=TRUE, fig.height=6, fig.width=8}
+# Extract the complexity parameter (cp) table
+cp_table <- fulltree$cptable
+
+# Get the "before last" cp value and print it
+before_last_cp <- cp_table[nrow(cp_table) - 1, "CP"]
+print(before_last_cp)
+
+# Prune the tree to the first CP value
+tree_pruned_1 <- prune(fulltree, cp = cp_table[nrow(cp_table) - 1, "CP"])
+rpart.plot(tree_pruned_1, main = "Pruned Tree - Step 1")
+
+# Prune the tree further using the next CP value
+tree_pruned_2 <- prune(tree_pruned_1, cp = cp_table[nrow(cp_table) - 2, "CP"])
+rpart.plot(tree_pruned_2, main = "Pruned Tree - Step 2")
+
+# Continue pruning iteratively
+tree_pruned_3 <- prune(tree_pruned_2, cp = cp_table[nrow(cp_table) - 3, "CP"])
+rpart.plot(tree_pruned_3, main = "Pruned Tree - Step 3")
+
+tree_pruned_4 <- prune(tree_pruned_3, cp = cp_table[nrow(cp_table) - 4, "CP"])
+rpart.plot(tree_pruned_4, main = "Pruned Tree - Step 4")
+
+# Print the CP table for the pruned tree, representing the optimal tree based on cross-validation
+printcp(tree_pruned_4)
+```
+
