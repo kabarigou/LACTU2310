@@ -36,8 +36,9 @@ dataset = read_parquet(file = "../data/dataset.parquet")
 When performing machine learning, one way to assess the predictability of the model is to use *fresh* data, not used in the *learning* process and compute some metric. This is also a good way to check whether the model is overfitting the data.
 
 In order to have *fresh* data available at a later stage, it is common to split the dataset into two:
- - a training set. This data is used to estimate/learn the model.
- - a test set. This data is used to check the performance of the model, once it has been learned.
+
+* a training set. This data is used to estimate/learn the model.
+* a test set. This data is used to check the performance of the model, once it has been learned.
  
 The package *caret* provides a lot of helpful functions. One of them is *createDataPartition*. Let us now split the data into two pieces (80% - 20%), by relying on stratified sampling. We use stratified sampling to obtain a similar distribution of the number of claims in boths the training and the test set. 
 
@@ -60,6 +61,29 @@ summary_table = 100*round(prop.table(with(temp, table(in_train_set, ClaimNb)), 1
 summary_table
 rm(temp)
 ```
+
+If we use random sampling instead of stratified sampling, we may take the risk of an imbalanced distribution for the number of claims *ClaimNb* as illustrated below. 
+
+```{r}
+# Randomly sample 80% without stratification
+n = nrow(dataset)
+train_indices = sample(1:n, size = 0.8 * n, replace = FALSE)
+
+# Create train and test sets
+training_set_random = dataset[train_indices, ]
+testing_set_random = dataset[-train_indices, ]
+
+# Check distribution
+temp = dataset
+temp$in_train_set = NA
+temp[train_indices, "in_train_set"] = 1
+temp[-train_indices, "in_train_set"] = 0
+
+summary_table_random = 100 * round(prop.table(with(temp, table(in_train_set, ClaimNb)), 1), 5)
+summary_table_random
+rm(temp)
+```
+
 
 ## Package CART
 

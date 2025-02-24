@@ -8,10 +8,11 @@ output: html_document
 ## Introduction
 
 This document demonstrates the simulation of data presented in the course, along with tree-based modeling using the **rpart** package. The analysis includes:
-- Simulating the dataset.
-- Fitting tree models with different maximum depths.
-- Visualizing the tree models.
-- Pruning the tree iteratively to identify the optimal model based on cross-validation.
+
+* Simulating the dataset.
+* Fitting tree models with different maximum depths.
+* Visualizing the tree models.
+* Pruning the tree iteratively to identify the optimal model based on cross-validation.
 
 ## Setup
 
