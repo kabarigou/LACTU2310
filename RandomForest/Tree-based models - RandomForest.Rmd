@@ -78,7 +78,7 @@ We also have some parameters related to the sampling done for each tree:
 
 ## A note on Out-of-bag (OOB)
 
-In average, we expect more or less 36.788% observations to be OOB (why ?). We can check if we obtained similar number of OOB. Let us compute on tree number 1, how many times each observation has been drawn.
+On average, we expect more or less 36.788% observations to be OOB (why ?). We can check if we obtained similar number of OOB. Let us compute on tree number 1, how many times each observation has been drawn.
 
 ```{r}
 m0_rf$inbag[,1] %>% 
@@ -106,7 +106,7 @@ OOB_analysis = apply(m0_rf$inbag, 1, cumprod)
 which.min(apply(OOB_analysis, 1, sum))
 ```
 
-It can even be showed that for $ \lim_{B \rightarrow \infty} OOBE = \text{LLO-CV} $, that is the out-of-bag error converges to the LOO-CV error estimate (leave one out cross validation) which is unbiased but with higher variance with respect to k-fold CV with k<n. (see Hastie, T., Tibshirani, R., Friedman, J. (2001). The Elements of Statistical Learning.)
+It can even be shown that $$ \lim_{B \rightarrow \infty} OOBE = \text{LLO-CV} $$ that is, the out-of-bag error converges to the leave-one-out cross-validation (LOO-CV) error estimate (which is unbiased but has higher variance compared to k-fold CV with k<n). (see Hastie, T., Tibshirani, R., and Friedman, J. (2001). The Elements of Statistical Learning.)
 
 Therefore, one could use the Out-of-bag error to find the optimal hyperparameters of the random forest.
 
@@ -257,7 +257,7 @@ We could rely on cross-validation to find the optimal hyper parameters, instead 
 
 Ideally, we would construct a grid of possible hyperparameters. For instance, we could choose a set of possible values for *nodesize* and for *mtry*. Then, run the cross-validation on each of the possible cases.
 
-However, due to time limitation of this live demo, we are only going to compare two different mtry parameter (due to the time limitation).
+However, due to time limitation of this live demo, we are only going to compare two different mtry parameters.
 
 We will fasten the learning process by parallelizing the learning of the different forest on the different folds.
 
@@ -323,7 +323,7 @@ apply(cbind(unlist(res0), unlist(res1)), 2, mean)
 
 We could also have tried different nodesize values. Due to time limitation, we will compare them using OOB error.
 
-Let us now construct the whole forest on the whole training_set with the optimal mtry = 3.
+Let us now construct the whole forest on the whole training_set with the optimal mtry = 5.
 
 
 ```{r}
@@ -332,7 +332,7 @@ m_final_1 = rfPoisson(x = training_set[, c("Power_ordered", "CarAge", "DriverAge
     "Brand", "Gas", "Region", "Density")], offset = log(training_set$Exposure), y = training_set$ClaimNb,
     xtest = testing_set[, c("Power_ordered", "CarAge", "DriverAge", "Brand", "Gas",
         "Region", "Density")], offsettest = log(testing_set$Exposure), ytest = testing_set$ClaimNb,
-    ntree = 100, nodesize = 10000, mtry = 3, importance = TRUE, do.trace = TRUE,
+    ntree = 100, nodesize = 10000, mtry = 5, importance = TRUE, do.trace = TRUE,
     keep.forest = TRUE)
 ```
 
@@ -348,7 +348,7 @@ m_final_2 = rfPoisson(x = training_set[, c("Power_ordered", "CarAge", "DriverAge
     "Brand", "Gas", "Region", "Density")], offset = log(training_set$Exposure), y = training_set$ClaimNb,
     xtest = testing_set[, c("Power_ordered", "CarAge", "DriverAge", "Brand", "Gas",
         "Region", "Density")], offsettest = log(testing_set$Exposure), ytest = testing_set$ClaimNb,
-    ntree = 100, nodesize = 15000, mtry = 3, importance = TRUE, do.trace = TRUE,
+    ntree = 100, nodesize = 15000, mtry = 5, importance = TRUE, do.trace = TRUE,
     keep.forest = TRUE)
 ```
 
@@ -364,7 +364,7 @@ m_final_3 = rfPoisson(x = training_set[, c("Power_ordered", "CarAge", "DriverAge
     "Brand", "Gas", "Region", "Density")], offset = log(training_set$Exposure), y = training_set$ClaimNb,
     xtest = testing_set[, c("Power_ordered", "CarAge", "DriverAge", "Brand", "Gas",
         "Region", "Density")], offsettest = log(testing_set$Exposure), ytest = testing_set$ClaimNb,
-    ntree = 100, nodesize = 5000, mtry = 3, importance = TRUE, do.trace = TRUE, keep.forest = TRUE)
+    ntree = 100, nodesize = 5000, mtry = 5, importance = TRUE, do.trace = TRUE, keep.forest = TRUE)
 ```
 
 ```{r}
