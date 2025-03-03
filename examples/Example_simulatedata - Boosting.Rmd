@@ -1,0 +1,326 @@
+---
+title: "Boosting on simulated dataset"
+author: "Karim Barigou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+This document demonstrates boosting a Poisson tree model step-by-step on the simulated dataset. We update the exposure at each boosting step and draw the optimal tree after 6 individual steps. The idea is to obtain the final additive predictor (score) such that the predicted claim frequency is given by:
+
+$$
+\widehat{\lambda}(x) = \text{exposure} \times \exp\Bigl(\text{score}(x)\Bigr)
+$$
+
+At each step $m$, we update the working exposure for observation $i$:
+$$
+e_{\text{mi}} = \text{exposure}_i \times \exp(\text{score}_{m-1}(x_))
+$$
+and fit a tree on the working training set using the Poisson deviance loss with an offset equal to $\log(e_{\text{mi}})$.
+
+The incremental prediction from the tree is then added to the overall score.
+
+In this example, we perform 6 boosting steps explicitly.
+
+## Setup
+
+We load the required libraries and simulate the dataset.
+
+```{r setup, echo=TRUE, message=FALSE, warning=FALSE}
+# Set a seed for reproducibility
+set.seed(123)
+
+# Load necessary libraries
+library(rpart)
+library(rpart.plot)
+library(knitr)
+
+# Simulate dataset with 1,000,000 observations
+n <- 500000
+X1 <- sample(c("female", "male"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+X2 <- sample(18:65, size = n, replace = TRUE)
+X3 <- sample(c("yes", "no"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+X4 <- sample(c("yes", "no"), size = n, replace = TRUE, prob = c(0.5, 0.5))
+exposure <- rep(1, n)
+
+# Compute expected claim frequency μ(x)
+mu <- 0.1 * 
+  (1 + 0.1 * (X1 == "male")) * 
+  (1 + 0.4 * (X2 >= 18 & X2 < 30) + 0.2 * (X2 >= 30 & X2 < 45)) * 
+  (1 + 0.15 * (X4 == "yes"))
+
+# Simulate response variable Y (number of claims) following a Poisson distribution
+Y <- rpois(n, lambda = mu)
+
+# Combine into a dataframe
+data <- data.frame(Y, Gender = X1, Age = X2, Split = X3, Sport = X4, exposure = exposure)
+
+# Initialize the additive predictor (score)
+# For Poisson with log-link, an optimal constant is log(total claims / total exposure)
+init_intercept <- log(sum(data$Y) / sum(data$exposure))
+score <- rep(init_intercept, nrow(data))
+```
+
+## Boosting Step-by-Step
+
+Below, we perform 6 explicit boosting steps without using a loop. At each step, we:
+
+1. Update the working exposure:  
+   $$ e_{\text{work}} = \text{exposure} \times \exp(\text{score}) $$
+2. Fit a tree model with the Poisson deviance loss using the working exposure as an offset.
+3. Obtain the incremental update from the tree.
+4. Add this update to the overall score.
+
+### Step 1
+
+```{r step1, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 1: Update working exposure
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree using the Poisson model with offset(log(e_work))
+boosted_tree1 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree1)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree1, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update1 <- log(pred_response)
+head(update1)
+
+# Update the additive predictor (score)
+score <- score + update1
+
+# Report progress
+cat("Step 1 complete: Mean update =", mean(update1), "\n")
+```
+
+### Step 2
+
+```{r step2, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 2: Update working exposure with new score
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree for Step 2
+boosted_tree2 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree2)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree2, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update2 <- log(pred_response)
+head(update2)
+
+# Update the additive predictor (score)
+score <- score + update2
+
+cat("Step 2 complete: Mean update =", mean(update2), "\n")
+```
+
+### Step 3
+
+```{r step3, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 3: Update working exposure
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree for Step 3
+boosted_tree3 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree3)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree3, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update3 <- log(pred_response)
+head(update3)
+
+# Update the additive predictor (score)
+score <- score + update3
+
+cat("Step 3 complete: Mean update =", mean(update3), "\n")
+```
+
+### Step 4
+
+```{r step4, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 4: Update working exposure
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree for Step 4
+boosted_tree4 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree4)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree4, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update4 <- log(pred_response)
+head(update4)
+
+# Update the additive predictor (score)
+score <- score + update4
+
+cat("Step 4 complete: Mean update =", mean(update4), "\n")
+```
+
+### Step 5
+
+```{r step5, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 5: Update working exposure
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree for Step 5
+boosted_tree5 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree5)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree5, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update5 <- log(pred_response)
+head(update5)
+
+# Update the additive predictor (score)
+score <- score + update5
+
+cat("Step 5 complete: Mean update =", mean(update5), "\n")
+```
+
+### Step 6
+
+```{r step6, echo=TRUE, message=FALSE, warning=FALSE}
+# Step 6: Update working exposure
+data$e_work <- data$exposure * exp(score)
+
+# Fit the tree for Step 6
+boosted_tree6 <- rpart(
+  cbind(e_work,Y) ~ Gender + Age + Split + Sport,
+  data = data,
+  method = "poisson",
+  control = rpart.control(cp = 0, maxdepth =1))
+
+# Plot the tree
+rpart.plot(boosted_tree6)
+
+# Predict on the response scale using the fitted tree
+pred_response <- predict(boosted_tree6, newdata = data, type = "vector")
+
+# Compute the additive update (on the log scale)
+update6 <- log(pred_response)
+head(update6)
+
+# Update the additive predictor (score)
+score <- score + update6
+
+cat("Step 6 complete: Mean update =", mean(update6), "\n")
+```
+
+## Final Boosted Model Evaluation
+
+After 6 boosting steps, the final additive predictor (score) is used to compute the boosted model's predicted claim frequency:
+
+$$
+\widehat{\lambda}(x) = \text{exposure} \times \exp(\text{score})
+$$
+
+## Comparing True vs. Estimated Frequencies on a Grid
+
+We now create a grid of representative covariate patterns and compare:
+
+- The true frequency $\mu(x).$
+- The estimated frequency from the boosting model (with 6 steps).
+
+For the grid we consider:
+
+- Age group: "x2 >= 45": we use Age = 50, "30 ≤ x2 < 45": Age = 35, and "x2 < 30": Age = 25.
+- Gender: "female" and "male".
+- Sport: "no" and "yes".
+
+We set `Split` arbitrarily to `"no"` (as it does not affect the true model here) and `exposure = 1`.
+
+```{r grid-comparison, echo=TRUE, message=FALSE}
+# Create grid of covariate combinations
+grid <- data.frame(
+  Gender = c("female", "male", "female", "male", "female", "male", "female", "male", "female", "male", "female", "male"),
+  Age = c(50, 50, 50, 50, 35, 35, 35, 35, 25, 25, 25, 25),
+  Sport = c("no", "no", "yes", "yes", "no", "no", "yes", "yes", "no", "no", "yes", "yes"),
+  Split = rep("no", 12)
+)
+grid$exposure <- 1  # set exposure to 1
+
+# Compute true frequency mu for the grid using the known model
+grid$mu_true <- 0.1 * 
+  (1 + 0.1 * (grid$Gender == "male")) *
+  (1 + ifelse(grid$Age >= 18 & grid$Age < 30, 0.4,
+         ifelse(grid$Age >= 30 & grid$Age < 45, 0.2, 0))) *
+  (1 + 0.15 * (grid$Sport == "yes"))
+
+
+# Boosting Predictions:
+# For the boosted model, we sum the predictions from each boosting step.
+# Given that the predictions are at the response level, we can simply
+# multiply the predictions to obtain the final prediction
+
+# For new grid we compute each update using the corresponding tree.
+boost_pred1 <- predict(boosted_tree1, newdata = grid, type = "vector")
+boost_pred2 <- predict(boosted_tree2, newdata = grid, type = "vector")
+boost_pred3 <- predict(boosted_tree3, newdata = grid, type = "vector")
+boost_pred4 <- predict(boosted_tree4, newdata = grid, type = "vector")
+boost_pred5 <- predict(boosted_tree5, newdata = grid, type = "vector")
+boost_pred6 <- predict(boosted_tree6, newdata = grid, type = "vector")
+
+# Cumulative boosting score on grid (note: initial score = init_intercept)
+grid$mu_boost <- exp(init_intercept) * boost_pred1 * boost_pred2 * boost_pred3 *
+                  boost_pred4 * boost_pred5 * boost_pred6
+
+
+# Format numeric values for display
+grid$mu_true  <- round(grid$mu_true, 4)
+grid$mu_boost <- round(grid$mu_boost, 4)
+
+# Display the comparison table
+kable(grid[, c("Gender", "Age", "Sport", "mu_true", "mu_boost")],
+      col.names = c("$x_1$ (Gender)", "$x_2$ (Age)", "$x_4$ (Sport)", "$\\mu(\\boldsymbol{x})$",  "$\\widehat{\\mu}^{boost}(\\boldsymbol{x})$ (for M=6)"),
+      caption = "Comparison of True Frequency and Estimated Frequencies")
+```
+
+## Conclusion
+
+In this document, we walked through 6 boosting steps manually without a loop. At each step, we updated the working exposure based on the current score, fit an incremental tree, predicted the adjustment, and subsequently updated the overall score. This sequential process leads to an improved model for predicting claim frequencies, culminating in the final boosted prediction:
+$$
+\widehat{\lambda}(x) = \text{exposure} \times \exp(\text{score})
+$$
+
+This example demonstrates how boosting, by iteratively combining weak learners, can yield an optimal predictive model.
