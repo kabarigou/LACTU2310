@@ -16,4 +16,4 @@ The analysis is conducted using R.
 
 - **RandomForest/**: Illustration of Random Forest for count data
 
-- - **GBM/**: Illustration of Gradient Boosting Model for count data
+- **GBM/**: Illustration of Gradient Boosting Model for count data
