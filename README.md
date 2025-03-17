@@ -13,3 +13,7 @@ The analysis is conducted using R.
   - `dataset.parquet` : dataset for the practical sessions.
 
 - **project/**: Will contain the instructions for the project.
+
+- **RandomForest/**: Illustration of Random Forest for count data
+
+- - **GBM/**: Illustration of Gradient Boosting Model for count data
